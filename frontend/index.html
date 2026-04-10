@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校招求职全流程多Agent协同智能助手</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 900px;
+            height: 90vh;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .chat-header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .chat-header p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .message.assistant .message-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message.user .message-avatar {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .message-content {
+            max-width: 75%;
+            padding: 15px 20px;
+            border-radius: 18px;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message-content pre {
+            background: #f1f3f5;
+            padding: 10px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+
+        .message.user .message-content pre {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 12px;
+        }
+
+        .input-wrapper textarea {
+            flex: 1;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            padding: 15px 20px;
+            font-size: 1rem;
+            resize: none;
+            outline: none;
+            transition: border-color 0.3s;
+            max-height: 120px;
+        }
+
+        .input-wrapper textarea:focus {
+            border-color: #667eea;
+        }
+
+        .input-wrapper button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: transform 0.2s;
+            flex-shrink: 0;
+        }
+
+        .input-wrapper button:hover {
+            transform: scale(1.05);
+        }
+
+        .input-wrapper button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .loading span {
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .loading span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .loading span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(1);
+            }
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+        }
+
+        .welcome-message h2 {
+            margin-bottom: 15px;
+            color: #495057;
+        }
+
+        .quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .quick-action {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 20px;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .quick-action:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .agent-tag {
+            display: inline-block;
+            background: #e9ecef;
+            color: #495057;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-bottom: 8px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="chat-container">
+            <div class="chat-header">
+                <div>
+                    <h1>🎓 校招求职全流程多Agent协同智能助手</h1>
+                    <p>职业规划 · 简历优化 · 面试辅导 · Offer评估</p>
+                </div>
+            </div>
+
+            <div class="messages-container" ref="messagesContainer">
+                <div v-if="messages.length === 0" class="welcome-message">
+                    <h2>👋 你好！</h2>
+                    <p>我是你的校招求职助手，可以帮你：</p>
+                    <div class="quick-actions">
+                        <span class="quick-action" @click="sendQuickMessage('我想做职业规划')">职业规划分析</span>
+                        <span class="quick-action" @click="sendQuickMessage('帮我优化简历')">简历优化</span>
+                        <span class="quick-action" @click="sendQuickMessage('帮我准备面试')">面试准备</span>
+                        <span class="quick-action" @click="sendQuickMessage('如何制作好简历')">简历技巧</span>
+                    </div>
+                </div>
+
+                <div v-for="(message, index) in messages" :key="index" :class="['message', message.role]">
+                    <div class="message-avatar">
+                        {{ message.role === 'assistant' ? '🤖' : '👤' }}
+                    </div>
+                    <div class="message-content">
+                        <span v-if="message.agent" class="agent-tag">{{ message.agent }}</span>
+                        <div v-if="message.isLoading" class="loading">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <div v-else v-html="formatMessage(message.content)"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <textarea 
+                        v-model="userInput" 
+                        @keydown="handleKeyDown"
+                        placeholder="输入你的问题..."
+                        :disabled="isLoading"
+                        rows="1"
+                    ></textarea>
+                    <button @click="sendMessage" :disabled="isLoading || !userInput.trim()">
+                        ➤
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, nextTick, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                const API_BASE_URL = '';
+                const messages = ref([]);
+                const userInput = ref('');
+                const isLoading = ref(false);
+                const messagesContainer = ref(null);
+                const context = ref({});
+
+                const scrollToBottom = () => {
+                    nextTick(() => {
+                        if (messagesContainer.value) {
+                            messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+                        }
+                    });
+                };
+
+                const formatMessage = (content) => {
+                    return content
+                        .replace(/\n/g, '<br>')
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\*(.*?)\*/g, '<em>$1</em>');
+                };
+
+                const sendMessage = async () => {
+                    if (!userInput.value.trim() || isLoading.value) return;
+
+                    const input = userInput.value;
+                    userInput.value = '';
+
+                    messages.value.push({
+                        role: 'user',
+                        content: input
+                    });
+
+                    messages.value.push({
+                        role: 'assistant',
+                        content: '',
+                        isLoading: true
+                    });
+
+                    isLoading.value = true;
+                    scrollToBottom();
+
+                    try {
+                        const response = await axios.post(`${API_BASE_URL}/api/chat`, {
+                            user_input: input,
+                            context: context.value
+                        });
+
+                        const lastMessage = messages.value[messages.value.length - 1];
+                        lastMessage.isLoading = false;
+                        lastMessage.content = response.data.result;
+                        lastMessage.agent = getAgentName(response.data.agent);
+                        
+                        context.value = response.data.context || {};
+                    } catch (error) {
+                        const lastMessage = messages.value[messages.value.length - 1];
+                        lastMessage.isLoading = false;
+                        lastMessage.content = '抱歉，发生了错误：' + (error.response?.data?.detail || error.message);
+                    }
+
+                    isLoading.value = false;
+                    scrollToBottom();
+                };
+
+                const sendQuickMessage = (message) => {
+                    userInput.value = message;
+                    sendMessage();
+                };
+
+                const handleKeyDown = (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                };
+
+                const getAgentName = (agent) => {
+                    const agentNames = {
+                        'demand_analysis': '需求分析Agent',
+                        'job_matching': '岗位匹配Agent',
+                        'resume_optimization': '简历优化Agent',
+                        'interview_simulation': '面试模拟Agent',
+                        'knowledge_base': '知识库问答Agent'
+                    };
+                    return agentNames[agent] || agent;
+                };
+
+                return {
+                    messages,
+                    userInput,
+                    isLoading,
+                    messagesContainer,
+                    sendMessage,
+                    sendQuickMessage,
+                    handleKeyDown,
+                    formatMessage
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
